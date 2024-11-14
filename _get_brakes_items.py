@@ -53,4 +53,6 @@ for idx, row in tqdm(df.iterrows(), total=len(df), desc=f"Processing nutrition i
         nutrition_text = row.Nutrition_string
         nutrition_text_cdf = sst.clean_nutrition_str(nutrition_text)
         
-        df.loc[idx, nutrition_text_cdf.Element +" ("+nutrition_text_cdf.Unit+")"] = nutrition_text_cdf.Value.astype(float).values
+        df.loc[idx, nutrition_text_cdf.Element +\
+               " ("+nutrition_text_cdf.Unit+")"
+               ] = nutrition_text_cdf.Value.astype(float).values
