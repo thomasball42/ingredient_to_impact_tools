@@ -15,6 +15,7 @@ import bs4
 import urllib.parse
 import os
 import pandas as pd
+import re 
 
 def list_site_pages(url):
     """ **recursion**without**proper**safety**features** :)** 
@@ -40,17 +41,11 @@ def list_site_pages(url):
     get_urls(url, url_list)
     return url_list
 
-def _get_url_df(url):
-    tdata_path = os.path.join("cache_dat", "site_data")
-    tfile_name = f"{urllib.parse.urlparse(url).netloc}_site_data.csv"
-    tfile_path = os.path.join(tdata_path, tfile_name)
+def _get_url_df(url, cache_data_path):
     # check for existing link data
-    if os.path.isfile(tfile_path):
-        df = pd.read_csv(tfile_path, index_col = 0)
+    if os.path.isfile(cache_data_path):
+        df = pd.read_csv(cache_data_path, index_col = 0)
     else:
-        # create dirs if they don't exist
-        if not os.path.isdir(tdata_path):
-            os.makedirs(tdata_path)
         url_list = list_site_pages(url)
         url_listx = [url for url in url_list if urllib.parse.urlparse(url).netloc in url]
         paths = [urllib.parse.urlsplit(url).path.strip('/') for url in url_list]
@@ -76,10 +71,10 @@ def _get_url_df(url):
                 row[i] = item
             df_rows.append(row)
         df = pd.DataFrame(df_rows)
-        df.to_csv(tfile_path)
+        df.to_csv(cache_data_path)
     return df
 
-def _get_fstring_p(page_url, fstring, fetch_func):
+def _get_fstring_p(page_url: str, fstring: str, fetch_func):
     """This is janky, if there are (eg) two ingredients lists on a page this
     will only return one of them. Works for Brakes though"""
     reqs = requests.get(page_url)
@@ -96,66 +91,22 @@ def _get_fstring_p(page_url, fstring, fetch_func):
                 ret = etext
     return ret
 
+def clean_nutrition_str(text: str):
+    """Returns a pandas.DataFrame
+    """
 
-if __name__ == "__main__":
-    
-    text = '\n\n\n       \n          \n        \n          \n                \n                     \n                \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n        \n            \n                per 100g\n            \n            \n        \n\n\n\nSuitable for Vegetarians\n\n\n\n\nEnergy (kcal)\n\n          \n          395\n          \n        \n\n\nEnergy (KJ)\n\n          \n          1662\n          \n        \n\n\nProtein (g)\n\n          \n          3.7\n          \n        \n\n\nCarbohydrates (g)\n\n          \n          65.4\n          \n        \n\n\nOf which sugars (g)\n\n          \n          36.7\n          \n        \n\n\nFat (g)\n\n          \n          13.5\n          \n        \n\n\nOf which saturates (g)\n\n          \n          8\n          \n        \n\n\nFibre (g)\n\n          \n          1.4\n          \n        \n\n\nSalt (g)\n\n          \n          0.2\n          \n        \n\n\nVegetarian Alternatives\n\n\n\n\n\n'
-    # def _clean_nutrition_str()
-    # def clean_nutrition_str(text):
-        # Clean up the text by removing excessive newlines and spaces
-    text_list = text.split()
-    
-    def tfloat(obj):
-        try:
-            float(obj)
-            return True
-        except ValueError:
-            return False
-        
-    for i, t in enumerate(text_list):
-        
-        # print(i, t)
-        
-        if tfloat(t):
-            
-            val = float(t)
-            unit = text_list[i-1]
-            name_inf = ""
-            ii = 0
-            print(val, unit)
-            while not tfloat(text_list[i-2-ii]):
-                name_inf = text_list[i-2-ii] + " " + name_inf
-                ii += 1
-            print(name_inf.strip())
-        
-        
-    # # Define a list of nutrients and values
-    # nutrients = [
-    #     'Energy (kcal)', 'Energy (KJ)', 'Protein (g)', 'Carbohydrates (g)', 'Of which sugars (g)',
-    #     'Fat (g)', 'Of which saturates (g)', 'Fibre (g)', 'Salt (g)'
-    # ]
-    
-    # # Initialize an empty dictionary
-    # nutrient_dict = {}
+# texts = ['\n\n\n       \n          \n        \n          \n        \n          \n                \n                     \n                \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n        \n            \n                per 100g\n            \n            \n        \n\n\n\nSuitable for Vegetarians\n\n\n\n\nSuitable for Vegans\n\n\n\n\nEnergy (kcal)\n\n          \n          417\n          \n        \n\n\nEnergy (KJ)\n\n          \n          1733\n          \n        \n\n\nProtein (g)\n\n          \n          3.4\n          \n        \n\n\nCarbohydrates (g)\n\n          \n          35\n          \n        \n\n\nOf which sugars (g)\n\n          \n          22\n          \n        \n\n\nFat (g)\n\n          \n          29\n          \n        \n\n\nOf which saturates (g)\n\n          \n          14\n          \n        \n\n\nFibre (g)\n\n          \n          2.6\n          \n        \n\n\nSalt (g)\n\n          \n          0.31\n          \n        \n\n\n\n',
+#  '\n\n\n       \n          \n                \n                     \n                \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n        \n            \n                per 100g\n            \n            \n        \n\n\n\nEnergy (kcal)\n\n          \n          194\n          \n        \n\n\nEnergy (KJ)\n\n          \n          812\n          \n        \n\n\nProtein (g)\n\n          \n          13\n          \n        \n\n\nCarbohydrates (g)\n\n          \n          20\n          \n        \n\n\nOf which sugars (g)\n\n          \n          1.6\n          \n        \n\n\nFat (g)\n\n          \n          6.9\n          \n        \n\n\nOf which saturates (g)\n\n          \n          0.7\n          \n        \n\n\nFibre (g)\n\n          \n          0.5\n          \n        \n\n\nSalt (g)\n\n          \n          1.4\n          \n        \n\n\nHalal\n\n\n\n\n\n',
+#  '\n\n\n       \n          \n        \n          \n        \n          \n                \n                     \n                \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n        \n            \n                per 100ml\n            \n            \n        \n\n\n\nSuitable for Vegetarians\n\n\n\n\nSuitable for Vegans\n\n\n\n\n\n',
+#  '\n\n\n       \n          \n        \n          \n                \n                     \n                \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n        \n            \n                per 100g\n            \n            \n        \n\n\n\nSuitable for Vegetarians\n\n\n\n\nEnergy (kcal)\n\n          \n          181\n          \n        \n\n\nEnergy (KJ)\n\n          \n          758\n          \n        \n\n\nProtein (g)\n\n          \n          2.9\n          \n        \n\n\nCarbohydrates (g)\n\n          \n          19\n          \n        \n\n\nOf which sugars (g)\n\n          \n          4.1\n          \n        \n\n\nFat (g)\n\n          \n          10\n          \n        \n\n\nOf which saturates (g)\n\n          \n          4\n          \n        \n\n\nFibre (g)\n\n          \n          1.7\n          \n        \n\n\nSalt (g)\n\n          \n          0.64\n          \n        \n\n\nVegetarian Alternatives\n\n\n\n\n\n',
+#  '\n\n\n       \n          \n        \n          \n                \n                     \n                \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n          \n        \n        \n            \n                per 100g\n            \n            \n        \n\n\n\nSuitable for Vegetarians\n\n\n\n\nEnergy (kcal)\n\n          \n          267\n          \n        \n\n\nEnergy (KJ)\n\n          \n          1118\n          \n        \n\n\nProtein (g)\n\n          \n          5\n          \n        \n\n\nCarbohydrates (g)\n\n          \n          31\n          \n        \n\n\nOf which sugars (g)\n\n          \n          20\n          \n        \n\n\nFat (g)\n\n          \n          13.7\n          \n        \n\n\nOf which saturates (g)\n\n          \n          6.9\n          \n        \n\n\nFibre (g)\n\n          \n          0.3\n          \n        \n\n\nSalt (g)\n\n          \n          0.28\n          \n        \n\n\nGluten Free Alternatives\n\n\n\n\n\n']
 
-    # # Iterate through each nutrient and extract its value from the text
-    # for nutrient in nutrients:
-    #     # Find the nutrient in the cleaned text
-    #     start_idx = clean_text.find(nutrient)
-        
-    #     if start_idx != -1:
-    #         # Move to the position after the nutrient name
-    #         start_idx += len(nutrient)
-            
-    #         # Extract the value (numbers are after the nutrient)
-    #         value = ''
-    #         for char in clean_text[start_idx:]:
-    #             if char.isdigit() or char == '.' or char == ',':
-    #                 value += char
-    #             elif value:  # Stop when we've collected the value
-    #                 break
-            
-    #         # Add the nutrient and its value to the dictionary
-    #         nutrient_dict[nutrient] = value
+
+
+# for text in texts:
+    sr = pd.Series()
     
-    # return nutrient_dict
+    pattern = r'(\w+(?: \w+)*) \((\w+)\)\s+\n+\s+([\d.]+)'
+    matches = re.findall(pattern, text)
+    
+    return pd.DataFrame(matches, columns = ["Element", "Unit", "Value"])
