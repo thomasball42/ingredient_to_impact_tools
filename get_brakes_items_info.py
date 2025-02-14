@@ -14,7 +14,7 @@ import bs4
 import requests
 from tqdm import tqdm
 
-OVERWRITE = False
+OVERWRITE = True
 SITE_URL = "https://www.brake.co.uk/sitemap.xml"
 
 HEADER_STRINGS = {
@@ -41,7 +41,7 @@ for idx, row in tqdm(df.iterrows(), total=len(df), desc=f"Scraping via {SITE_URL
         
         for i, (fstring, fetch_func) in enumerate(HEADER_STRINGS.items()):
             
-            if f"{fstring}_string" not in df.columns or df[f"{fstring}_string"].isnull().all() or OVERWRITE:
+            if f"{fstring}_string" not in df.columns or np.isnan(df.loc[idx, f"{fstring}_string"]) or OVERWRITE:
                 
                 page_url = row.URL
                 for r in REJECT_LIST:
