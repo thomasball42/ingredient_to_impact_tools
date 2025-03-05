@@ -24,7 +24,6 @@ if not os.path.isdir(CLARK_PATH):
     with zipfile.ZipFile(io.BytesIO(response.content)) as zip_file:
         zip_file.extractall(CLARK_PATH)
     
-
 cache_data_dir = os.path.join("dat", "site_data")
 cache_data_name = f"{urllib.parse.urlparse(SITE_URL).netloc}_site_data.csv"
 cache_data_path = os.path.join(cache_data_dir, cache_data_name)
@@ -35,6 +34,8 @@ cats_df = pd.read_csv(os.path.join(CLARK_PATH, "Clark_et_al_2022_PNAS_SM",
 prods_df = pd.read_csv(os.path.join(CLARK_PATH, "Clark_et_al_2022_PNAS_SM",
                         "foodDB_dat", "products anonymised.csv"), 
                        encoding = "latin-1", low_memory=False)
+
+prods_df["Retailer"] = 2918
 
 df = pd.read_csv(cache_data_path, index_col = 0)
 
@@ -49,15 +50,12 @@ pdf_cols = {'Energy (kcal)' : "energy_per_100",
             'Fat (g)' : "fat_per_100",
             'Of which saturates (g)' : "saturates_per_100", 
             'Fibre (g)' : "fibre_per_100",
-            
+            'Salt (g)' : "salt_per_100",
             "Ingredients_string" : "ingredients_text"
             }
 
-
 for r, (idx, row) in tqdm(enumerate(df.iterrows()), total=len(df), desc="Formatting.."):
-    
     if not pd.isnull(row.Nutrition_string):
-        
         row_id = len(pdf)
         
         shop_location = {"product_id":      row.iloc[1] + cats_df.product_id.max(), # to make sure nothing overlaps with existing food-db data
@@ -73,11 +71,21 @@ for r, (idx, row) in tqdm(enumerate(df.iterrows()), total=len(df), desc="Formatt
         pdf.loc[row_id, "product_id"] = row.iloc[1] + cats_df.product_id.max()
         pdf.loc[row_id, "product_name"] = row["Product name_string"]
         pdf.loc[row_id, "url"] = row.URL
-        
+        pdf.loc[row_id, "ingredients_text"] = row.Ingredients_string
+        pdf.loc[row_id, "Retailer"] = "Brakes"
         
         for item in row.index:
             if item in pdf_cols.keys():
                 pdf.loc[row_id, pdf_cols[item]] = row[item]
         
-        
-        
+
+products_out_path = os.path.join(cache_data_dir, f"products_{urllib.parse.urlparse(SITE_URL).netloc}.csv")
+pdf.to_csv(products_out_path, index=False)
+categories_out_path = os.path.join(cache_data_dir, f"categories_{urllib.parse.urlparse(SITE_URL).netloc}.csv")
+cdf.to_csv(categories_out_path, index=False)
+
+prods_df_concat = pd.concat([pdf, prods_df])
+cats_df_concat = pd.concat([cdf, cats_df])
+
+prods_df_concat.to_csv(os.path.join("clark_mod", "products_concat.csv"))
+cats_df_concat.to_csv(os.path.join("clark_mod", "categories_concat.csv"))
