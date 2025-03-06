@@ -36,7 +36,6 @@ def _get_url_df(url, cache_data_path, overwrite: bool):
     if os.path.isfile(cache_data_path) and not overwrite:
         df = pd.read_csv(cache_data_path, index_col = 0)
     else:
-        # url_list = list_site_pages(url)
         url_list = fetch_product_pages(url)
         url_listx = [url for url in url_list if urllib.parse.urlparse(url).netloc in url]
         paths = [urllib.parse.urlsplit(url).path.strip('/') for url in url_list]
@@ -122,7 +121,7 @@ def clean_pack_size(text: str, **kwargs):
                     "gne" : 1,
                     }
     range_mean = lambda rstr: np.mean([float(v) for v in rstr.split("-")])
-    def MASS_EXTRACTOR(pack_size_str):
+    def MASS_EXTRACTOR(pack_size_str): #lol
         match = re.search(r'(?P<quantity>\d+)\s*x\s*(?P<item_size>\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?)(?P<unit>[a-zA-Z]+)', pack_size_str)
         item_mass_g, items_in_pack, flag = None, None, np.nan
         if match:
@@ -196,16 +195,12 @@ def extract_ingredient_details(df, column_name):
     return exploded_df
 
 
-if __name__ == "__main__":
-    
+if __name__ == "__main__": # Just for testing
     soup, sc = _get_soup("https://www.brake.co.uk/bakery/sweet-bakery/doughnuts-eclairs/ring-doughnuts/country-choice-sugared-ring-doughnut/p/67004")
     element = soup.find('h1', class_="product-details__name no-content")
-    
     ret = None    
     if element:
         ret = element.get_text(strip=True)
-    
-    
     pass
         
         
