@@ -1,5 +1,9 @@
 .Rhistory
-dat
+dat/*data*
+dat/clark_mod/Outputs
+dat/clark_mod/*Val*
+dat/clark_mod/*Calc*
+dat/clark_mod/*impacts*
 *.csv
 
 # Byte-compiled / optimized / DLL files
