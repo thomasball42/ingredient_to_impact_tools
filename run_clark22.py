@@ -7,18 +7,18 @@ Created on Mon Feb 17 09:31:59 2025
 
 import os
 import rpy2.robjects as ro
-import urllib
-
+# import urllib
+import tldextract
 
 SITE_URL = "https://www.brake.co.uk/sitemap.xml"
 dat_path = "dat"
 
 
-site = urllib.parse.urlparse(SITE_URL).netloc
+site = tldextract.extract(SITE_URL).domain
 
 # Create args
 args = {"arg1" : os.path.abspath(os.getcwd()),
-        "arg2" : os.path.abspath(os.path.join(dat_path, "clark_mod", "Outputs", site)),
+        "arg2" : os.path.abspath(os.path.join(dat_path, "clark_mod_outputs", site)),
         "arg3" : os.path.abspath(os.path.join(dat_path, "site_data", f"products_{site}.csv")),
         "arg4" : os.path.abspath(os.path.join(dat_path, "site_data", f"categories_{site}.csv")),
         
@@ -28,8 +28,8 @@ args = {"arg1" : os.path.abspath(os.getcwd()),
 
         }
 
-if not os.path.isdir(os.path.join(dat_path, "clark_mod", "Outputs", site)): 
-    os.makedirs(os.path.join(dat_path, "clark_mod", "Outputs", site), exist_ok=True)
+if not os.path.isdir(os.path.join(dat_path, "clark_mod_outputs", site)): 
+    os.makedirs(os.path.join(dat_path, "clark_mod_outputs", site), exist_ok=True)
    
 packages = ["plyr", "dplyr", "readr", "stringr", "stringi", "reshape2", "dismo"]
 for package in packages:

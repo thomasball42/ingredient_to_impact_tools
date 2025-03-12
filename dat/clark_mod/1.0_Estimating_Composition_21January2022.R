@@ -2,19 +2,25 @@
 # This script has been modified to work with the rest of 'ingredients_to_impact_tools' - Thomas Ball 17/02/25
 # %%%%
 
+#dcpath <- paste0("E:\\OneDrive\\OneDrive - University of Cambridge\\Work\\BWC Hospital\\data_calcs\\")
+dcpath <- paste0("C:\\Users\\Thomas Ball\\OneDrive - University of Cambridge\\Work\\BWC Hospital\\data_calcs")
+products_dat <- paste0('dat', '\\site_data\\products_brake.csv')
+categories_dat <- paste0("dat", "\\site_data\\categories_brake.csv")
+wd <- paste0(dcpath, "\\ingredient_to_impact_tools")
+output_dir <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_mod_outputs\\brake")
+comp_funcs_00 <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_mod\\0.0_Functions_Estimating_Composition_22January2022.R")
+clark_dat_path <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_data\\Clark_et_al_2022_PNAS_SM\\Data Inputs")
 
-#products_dat <- paste0('dat', '\\site_data\\products_www.brake.co.uk.csv')
-#categories_dat <- paste0("dat", "\\site_data\\categories_www.brake.co.uk.csv")
-
-wd <- arg1
-output_dir <- arg2
-products_dat <- arg3
-categories_dat <- arg4
-comp_funcs_00 <- arg5
-clark_dat_path <- arg6
+# wd <- arg1
+# output_dir <- arg2
+# products_dat <- arg3
+# categories_dat <- arg4
+# comp_funcs_00 <- arg5
+# clark_dat_path <- arg6
 
 
-setwd(paste0(arg1))
+
+setwd(paste0(wd))
 
 search_words_dat <- paste0(clark_dat_path, "\\Search words 6April2020 try2.csv")
 search_words_2_dat <- paste0(clark_dat_path,'\\Search words, second round, 22Jan2022.csv')
@@ -116,8 +122,8 @@ dat <-
 #                                                                              ifelse(grepl('www.*Brake',url,ignore.case=TRUE),'Brakes',
 #                                                                                    ifelse(grepl('www.Cookfood',url,ignore.case=TRUE),'Cook', NA)))))))))))
 
-#dat <- dat%>%
- # mutate(Retailer = 2918)
+# dat <- dat%>%
+# mutate(Retailer = 2918)
 
 
 
@@ -237,7 +243,7 @@ for(retail in (retailers)) {
   # Looping through departments
   for(z in 1:loops) {
     
-    progress_update(z, length(loops))
+    progress_update(z, loops)
     # Managing search words
     # This is used to categorize products into lca and nutritional categories
     search.words = 
@@ -894,9 +900,9 @@ for(retail in (retailers)) {
     
     write.csv(dat.long.nuts,
               paste0(output_dir,"\\FoodDB percent composition by ingredient DLN ",
-                     retail,"_", departments[z],"_18January2022.csv"),
+                     retail,"_", departments[z],".csv"),
               row.names = FALSE)
-    cat(retail, departments[z])
+    cat(retail, departments[z])#
     
     ###
     # Rbinding embedded and non-embedded data
@@ -947,7 +953,10 @@ for(retail in (retailers)) {
         mutate(variable = NA, value = NA, percent = total_composition, value_not_embedded = NA)
       
       # Reordering columns
+      missing_cols <- setdiff(names(dat.tot), names(keep.tmp))
+      keep.tmp[missing_cols] <- NA
       keep.tmp <- keep.tmp[,names(dat.tot)]
+     
       
       # And adding the updated data
       dat.tot <-
@@ -958,17 +967,23 @@ for(retail in (retailers)) {
 
     # Saving data frame
     write.csv(dat.tot,
-              paste0(output_dir,"\\FoodDB percent composition by ingredient EMBED",
-                     retail,"_", departments[z],"_18January2022.csv"),
+              paste0(output_dir,"\\FoodDB percent composition by ingredient EMBED ",
+                     retail,"_", departments[z],".csv"),
+              row.names = FALSE)
+    cat(retail, departments[z])
+    
+    write.csv(dat.long,
+              paste0(output_dir,"\\FoodDB percent composition by ingredient DATLON ",
+                     retail,"_", departments[z],".csv"),
               row.names = FALSE)
     cat(retail, departments[z])
    }
 }
 
-# #####
-# ###
-# # Now identifying composition of products without any listed ingredients
-# # Getting data frame of products we could interpolate
+#####
+###
+# Now identifying composition of products without any listed ingredients
+# Getting data frame of products we could interpolate
 # file.list = list.files(path = paste0(output_dir),
 #                        pattern = 'FoodDB percent composition by ingredient ', full.names = TRUE)
 # 
@@ -978,18 +993,18 @@ for(retail in (retailers)) {
 # for(i in 1:length(file.list)) {
 #   tmp.dat = read.csv(file.list[i], stringsAsFactors = FALSE)
 #   if(i == 1) {
-#     stacked.dat = rbind(stacked.dat,tmp.dat) 
+#     stacked.dat = rbind(stacked.dat,tmp.dat)
 #   } else if(length(names(tmp.dat)) != length(names(stacked.dat))) {
 #     tmp.dat <- tmp.dat[,names(stacked.dat)]
 #     stacked.dat = rbind(stacked.dat, tmp.dat)
 #   } else if(length(names(tmp.dat)) == length(names(stacked.dat))) {
 #     stacked.dat = rbind(stacked.dat, tmp.dat)
 #   }
-#   
+# 
 # }
 # 
 # 
-# products.keep <- 
+# products.keep <-
 #   stacked.dat %>%
 #   dplyr::select(id, product_name, Retailer, Department, Aisle, Shelf) %>%
 #   mutate(id_filter = paste0(id, product_name, Retailer, Department, Aisle, Shelf)) %>%
@@ -997,13 +1012,13 @@ for(retail in (retailers)) {
 # 
 # # Getting data frame of these products
 # # Importing and managing the data set
-# product.dat <- 
+# product.dat <-
 #   read_csv(products_dat)
 # 
 # # View(product.dat[grepl("[0-9]{1,3}(\\s)?g.*per(\\s)?[0-9]{1,3}(\\s)?g",product.dat$ingredients_text),])
 # 
 # # Categories
-# cat.dat <- 
+# cat.dat <-
 #   read_csv(categories_dat) %>%
 #   dplyr::select(-shelf) %>%
 #   dplyr::rename(shelf = aisle) %>%
@@ -1013,7 +1028,7 @@ for(retail in (retailers)) {
 # # Merging
 # # Need to do this in two steps
 # dat <-
-#   left_join(product.dat, 
+#   left_join(product.dat,
 #             cat.dat %>% dplyr::select(product_id, department, aisle, shelf)) %>%
 #   unique(.)
 # 
@@ -1040,7 +1055,7 @@ for(retail in (retailers)) {
 #  # filter(ingredients_text == 'NULL')
 # 
 # # search product words
-# search.products = 
+# search.products =
 #   read.csv(search_products_dat, stringsAsFactors = FALSE) %>%
 #   mutate(count = NA) %>%
 #   cbind(.,
@@ -1056,5 +1071,5 @@ for(retail in (retailers)) {
 # write.csv(dat.products,
 #           paste0(output_dir,"\\FoodDB estimated products no ingredient list 18January2022.csv"),
 #           row.names = FALSE)
-# 
-# 
+
+

@@ -8,11 +8,12 @@ Created on Wed Aug  7 16:13:02 2024
 import _site_scrape_tools as sst
 import pandas as pd
 import numpy as np
-import urllib
+# import urllib
 import os
-import bs4
-import requests
+# import bs4
+# import requests
 from tqdm import tqdm
+import tldextract
 
 OVERWRITE = True
 SITE_URL = "https://www.brake.co.uk/sitemap.xml"
@@ -26,7 +27,7 @@ HEADER_STRINGS = {
 
 REJECT_LIST = ["catering-supplies"]
 cache_data_dir = os.path.join("dat", "site_data")
-cache_data_name = f"{urllib.parse.urlparse(SITE_URL).netloc}_site_data.csv"
+cache_data_name = f"{tldextract.extract(SITE_URL).domain}_site_data.csv"
 cache_data_path = os.path.join(cache_data_dir, cache_data_name)
 
 # create dirs if they don't exist
