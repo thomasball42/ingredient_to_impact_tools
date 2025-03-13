@@ -4,7 +4,7 @@ dat/clark_mod/Outputs
 dat/clark_mod/*Val*
 dat/clark_mod/*Calc*
 dat/clark_mod/*impacts*
-*.csv
+dat/clark_mod_outputs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -3,22 +3,20 @@
 # %%%%
 
 #dcpath <- paste0("E:\\OneDrive\\OneDrive - University of Cambridge\\Work\\BWC Hospital\\data_calcs\\")
-dcpath <- paste0("C:\\Users\\Thomas Ball\\OneDrive - University of Cambridge\\Work\\BWC Hospital\\data_calcs")
-products_dat <- paste0('dat', '\\site_data\\products_brake.csv')
-categories_dat <- paste0("dat", "\\site_data\\categories_brake.csv")
-wd <- paste0(dcpath, "\\ingredient_to_impact_tools")
-output_dir <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_mod_outputs\\brake")
-comp_funcs_00 <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_mod\\0.0_Functions_Estimating_Composition_22January2022.R")
-clark_dat_path <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_data\\Clark_et_al_2022_PNAS_SM\\Data Inputs")
+# dcpath <- paste0("C:\\Users\\Thomas Ball\\OneDrive - University of Cambridge\\Work\\BWC Hospital\\data_calcs")
+# products_dat <- paste0('dat', '\\site_data\\products_brake.csv')
+# categories_dat <- paste0("dat", "\\site_data\\categories_brake.csv")
+# wd <- paste0(dcpath, "\\ingredient_to_impact_tools")
+# output_dir <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_mod_outputs\\brake")
+# comp_funcs_00 <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_mod\\0.0_Functions_Estimating_Composition_22January2022.R")
+# clark_dat_path <- paste0(dcpath, "\\ingredient_to_impact_tools\\dat\\clark_data\\Clark_et_al_2022_PNAS_SM\\Data Inputs")
 
-# wd <- arg1
-# output_dir <- arg2
-# products_dat <- arg3
-# categories_dat <- arg4
-# comp_funcs_00 <- arg5
-# clark_dat_path <- arg6
-
-
+wd <- arg1
+output_dir <- arg2
+products_dat <- arg3
+categories_dat <- arg4
+comp_funcs_00 <- arg5
+clark_dat_path <- arg6
 
 setwd(paste0(wd))
 
@@ -43,7 +41,6 @@ if('Outputs' %in% list.files(getwd())) {
 } else {
   dir.create(output_dir)
 }
-
 
 ###
 # Loading functions
@@ -222,7 +219,6 @@ progress_update <- function(step, total) {
 }
 
 for(retail in (retailers)) {
-  
   
   # Getting dat limited to the retailer
   dat.retailer = dat.whole %>% filter(Retailer %in% retail)
@@ -631,8 +627,6 @@ for(retail in (retailers)) {
     # E.g. going from 'brassicas' to 'broccoli','cauliflower', and a few other categories
     dat.long <- match.ingredient.function.subcategories(dat.long, search.words.sub, embedded = 'no')
 
-
-
     # And saving for interpolation
     dat.percent.save <- dat.long
 
@@ -898,11 +892,11 @@ for(retail in (retailers)) {
       filter(drop %in% dat.long.drop$drop) %>%
       dplyr::select(-drop)
     
-    write.csv(dat.long.nuts,
-              paste0(output_dir,"\\FoodDB percent composition by ingredient DLN ",
-                     retail,"_", departments[z],".csv"),
-              row.names = FALSE)
-    cat(retail, departments[z])#
+    # write.csv(dat.long.nuts,
+    #           paste0(output_dir,"\\FoodDB percent composition by ingredient DLN ",
+    #                  retail,"_", departments[z],".csv"),
+    #           row.names = FALSE)
+    # cat(retail, departments[z])#
     
     ###
     # Rbinding embedded and non-embedded data
@@ -972,11 +966,11 @@ for(retail in (retailers)) {
               row.names = FALSE)
     cat(retail, departments[z])
     
-    write.csv(dat.long,
-              paste0(output_dir,"\\FoodDB percent composition by ingredient DATLON ",
-                     retail,"_", departments[z],".csv"),
-              row.names = FALSE)
-    cat(retail, departments[z])
+    # write.csv(dat.long,
+    #           paste0(output_dir,"\\FoodDB percent composition by ingredient DATLON ",
+    #                  retail,"_", departments[z],".csv"),
+    #           row.names = FALSE)
+    # cat(retail, departments[z])
    }
 }
 

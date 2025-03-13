@@ -15,7 +15,7 @@ import os
 from tqdm import tqdm
 import tldextract
 
-OVERWRITE = True
+OVERWRITE = False
 SITE_URL = "https://www.brake.co.uk/sitemap.xml"
 
 HEADER_STRINGS = {
@@ -57,6 +57,7 @@ for idx, row in tqdm(df.iterrows(), total=len(df), desc=f"Scraping via {SITE_URL
                 
 df.to_csv(cache_data_path)
 
+#%%
 for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing info"):
 
     if "Nutrition_string" in row and isinstance(row.Nutrition_string, str):
@@ -68,8 +69,13 @@ for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing info"):
                ] = nutrition_text_cdf.Value.astype(float).values
     
     if "Pack size_string" in row and isinstance(row["Pack size_string"], str):
-        ps_text = row["Pack size_string"]
-        df.loc[idx, ["item_mass_g"," items_in_pack", "CHECKFLAG"]] = sst.clean_pack_size(ps_text)
+        ps_text, prod_name = row["Pack size_string"], row["Product name_string"]
+        df.loc[idx, ["item_mass_g"," items_in_pack", "portions_in_pack", "PACKFLAG"]] = sst.clean_pack_size(ps_text, prod_name)
         
 df.to_csv(cache_data_path)
+
+
+#%% test
+xdf = df[(df.item_mass_g.isna())&(df.status_code != 404)]
+
 

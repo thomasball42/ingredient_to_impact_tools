@@ -55,6 +55,7 @@ pdf_cols = {'Energy (kcal)' : "energy_per_100",
             'Pack size_string' : "pack_size_string",
             " items_in_pack" : "items_in_pack",
             "item_mass_g" : "item_mass_g",
+            "portions_in_pack" : "portions_in_pack"
             }
 
 for r, (idx, row) in tqdm(enumerate(df.iterrows()), total=len(df), desc="Formatting.."):

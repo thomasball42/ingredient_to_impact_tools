@@ -29,22 +29,29 @@ impact_df = impact_df.reset_index(names= ["Item"] + impact_df.columns.to_list())
 crosswalk = pd.read_csv(commodity_crosswalk_path, index_col = 0)
 product_data_df = pd.read_csv(product_data_path, index_col = 0)
 
+# Read in site files from clark output
 f = []
 for path, subdirs, files in os.walk(site_ingredients_data_dir):
         for name in files:
             f.append(os.path.join(path, name))
-    
 df = pd.DataFrame()
 for file in [_ for _ in f if "EMBED" in _]:
-    df = pd.concat([df, pd.read_csv(file)])
+    try:
+        df = pd.concat([df, pd.read_csv(file)])
+    except UnicodeDecodeError:
+        df = pd.concat([df, pd.read_csv(file, encoding = "latin-1")])
+        
+#Minor processing
 df["percent"] = df.percent.apply(_impact_funcs.clean_perc)
 df.loc[df.Department.isna(), "Department"] = "Unknown"
-
 impact_list = impact_df.columns.to_list()[1:]
-composition_impacts_long = pd.DataFrame()
 
+# Create dfs for output
+composition_impacts_long = pd.DataFrame()
+composition_impacts_totals = pd.DataFrame()
+
+# Loop through unique products
 for item_id in tqdm.tqdm(df.id.unique(), total = len(df.id.unique())): 
-    
     
     product_df = df[df.id == item_id]
     product_df.loc[:, "Food_Category"] = product_df.Food_Category.copy().fillna("other ingredients")
@@ -70,12 +77,12 @@ for item_id in tqdm.tqdm(df.id.unique(), total = len(df.id.unique())):
             cw = crosswalk[crosswalk.LCA_name == fc]
             
             impact_name = cw.Item.squeeze()
-
+                
             if isinstance(impact_name, str):
                 impacts = impact_df.loc[impact_df.Item == impact_name].squeeze()[1:]
                 if len(impacts) > 0:
                     product_df_gsum.loc[product_df_gsum.Food_Category==fc, 
-                                        impact_list] = impacts.values
+                                        [x+"_ingred" for x in impact_list]] = impacts.values
                     product_df_gsum.loc[product_df_gsum.Food_Category==fc, 
                                         [x+"_prod" for x in impact_list]] = (impacts *(pc / 100)).values
 
@@ -85,27 +92,51 @@ for item_id in tqdm.tqdm(df.id.unique(), total = len(df.id.unique())):
                     for col in impacts.iloc[:, 1:]:    
                         vals = impacts[col]
                         wm = _impact_funcs.weighted_quantile(vals, 0.5) 
-                        product_df_gsum.loc[idx, col] = wm
+                        product_df_gsum.loc[idx, col+"_ingred"] = wm
                         product_df_gsum.loc[idx, col+"_prod"] = wm * (pc / 100)
         else:
             product_df_gsum.loc[product_df_gsum.Food_Category==fc, 
-                                impact_list] = [np.nan for _ in impact_list]
+                                [x+"_ingred" for x in impact_list]] = [np.nan for _ in impact_list]
             product_df_gsum.loc[product_df_gsum.Food_Category==fc, 
                                 [x+"_prod" for x in impact_list]] = [np.nan for _ in impact_list]
-            
-            
-            
+    
     composition_impacts_long = pd.concat([composition_impacts_long, product_df_gsum])
 
-
-#%%
-for item_id in tqdm.tqdm(composition_impacts_long.id.unique(), total = len(composition_impacts_long.id.unique())): 
+    # Calcualte totals and pack based impacts
+    long_comp = composition_impacts_long[composition_impacts_long.id == item_id] # redundant structuring but minor efficiency gains aren't worth it.
+    
+    comp = long_comp.loc[:, ~long_comp.columns.str.contains("_ingred")]
+    # prod_sums = comp.reset_index().loc[[0], comp.reset_index().nunique() == 1].copy()
+    prod_sums = comp.reset_index(drop=True).loc[[0], comp.nunique() == 1].copy()
+    
     
     product_data = product_data_df.loc[item_id]
+    items_in_pack = product_data.items_in_pack
+    pack_mass_kg = product_data.item_mass_g * items_in_pack / 1000
+    portions_in_pack = product_data.portions_in_pack
+    
+    prod_sums[["items_in_pack", "portions_in_pack", "pack_mass_kg"]] = items_in_pack, portions_in_pack, pack_mass_kg
+    composition_impacts_long.loc[composition_impacts_long.id == item_id, ["items_in_pack", "portions_in_pack", "pack_mass_kg"]] = items_in_pack, portions_in_pack, pack_mass_kg                    
 
+    for i, impact in enumerate(impact_list):
+        impact_val = np.nansum(comp[impact + "_prod"])
+        if impact_val == 0:
+            impact_val = np.nan
+        #update totals
+        prod_sums[impact + "_prod"] = impact_val
+        prod_sums[impact.replace("_per_kg", "_per_pack")] = impact_val * pack_mass_kg
+        #update long dat
+        composition_impacts_long.loc[composition_impacts_long.id == item_id, impact.replace("_per_kg", "_per_pack")] = comp[impact + "_prod"] * pack_mass_kg
+        
+    composition_impacts_totals = pd.concat([composition_impacts_totals, prod_sums])
+
+composition_impacts_totals = composition_impacts_totals.drop(columns="percent") # really not sure where this 'percent' column comes from - it's not in prod_sums...
+
+if not os.path.isdir("outputs"):
+    os.makedirs("outputs", exist_ok=True)
     
-    
-    
+composition_impacts_long.to_csv(os.path.join("outputs", f"{site}_composition_impacts_long.csv"))
+composition_impacts_totals.to_csv(os.path.join("outputs", f"{site}_composition_impacts_totals.csv"))
 
     
     

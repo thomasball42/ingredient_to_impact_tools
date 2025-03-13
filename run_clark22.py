@@ -2,12 +2,14 @@
 """
 Created on Mon Feb 17 09:31:59 2025
 
+This is because I dont speak R very well and it was quicker to control the
+inputs to the clark scripts here than in R. 
+
 @author: Thomas Ball
 """
 
 import os
 import rpy2.robjects as ro
-# import urllib
 import tldextract
 
 SITE_URL = "https://www.brake.co.uk/sitemap.xml"
