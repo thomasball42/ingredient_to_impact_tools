@@ -10,7 +10,7 @@ import os
 import tldextract
 import tqdm
 
-import _impact_funcs
+import _0_4_impact_funcs
 
 SITE_URL = "https://www.brake.co.uk/sitemap.xml"
 dat_path = "dat"
@@ -43,7 +43,7 @@ for file in [_ for _ in f if "EMBED" in _]:
         df = pd.concat([df, pd.read_csv(file, encoding = "latin-1")])
         
 #Minor processing
-df["percent"] = df.percent.apply(_impact_funcs.clean_perc)
+df["percent"] = df.percent.apply(_0_4_impact_funcs.clean_perc)
 df.loc[df.Department.isna(), "Department"] = "Unknown"
 impact_list = impact_df.columns.to_list()[1:]
 
@@ -68,7 +68,7 @@ for item_id in tqdm.tqdm(df.id.unique(), total = len(df.id.unique())):
     product_df_gsum["group_v7"] = ""
     
     for idx, row in product_df_gsum.iterrows():
-        fc = _impact_funcs.name_mismatches(row.Food_Category) 
+        fc = _0_4_impact_funcs.name_mismatches(row.Food_Category) 
         pc = row.percent
         if fc in crosswalk.LCA_name.to_list():
             cw = crosswalk[crosswalk.LCA_name == fc]
@@ -89,7 +89,7 @@ for item_id in tqdm.tqdm(df.id.unique(), total = len(df.id.unique())):
                 if len(impacts) > 0:
                     for col in impacts.iloc[:, 1:]:    
                         vals = impacts[col]
-                        wm = _impact_funcs.weighted_quantile(vals, 0.5) 
+                        wm = _0_4_impact_funcs.weighted_quantile(vals, 0.5) 
                         product_df_gsum.loc[idx, col+"_ingred"] = wm
                         product_df_gsum.loc[idx, col+"_prod"] = wm * (pc / 100)
                 gname = food_cat_group[food_cat_group.Food_category == fc].group_name_v7.squeeze()

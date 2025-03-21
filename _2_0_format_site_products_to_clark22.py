@@ -14,7 +14,7 @@ import tldextract
 OVERWRITE = True
 SITE_URL = "https://www.brake.co.uk/"
 CLARK_PATH = os.path.join("dat", "clark_data")
-sitename = tldextract.extract(SITE_URL).domain
+site_name = tldextract.extract(SITE_URL).domain
 
 if not os.path.isdir(CLARK_PATH):
     import requests
@@ -27,7 +27,7 @@ if not os.path.isdir(CLARK_PATH):
         zip_file.extractall(CLARK_PATH)
     
 cache_data_dir = os.path.join("dat", "site_data")
-cache_data_name = f"{sitename}_site_data.csv"
+cache_data_name = f"{site_name}_site_data.csv"
 cache_data_path = os.path.join(cache_data_dir, cache_data_name)
 
 cats_df = pd.read_csv(os.path.join(CLARK_PATH, "Clark_et_al_2022_PNAS_SM", 
@@ -84,13 +84,7 @@ for r, (idx, row) in tqdm(enumerate(df.iterrows()), total=len(df), desc="Formatt
                 pdf.loc[row_id, pdf_cols[item]] = row[item]
         
 
-products_out_path = os.path.join(cache_data_dir, f"products_{sitename}.csv")
+products_out_path = os.path.join(cache_data_dir, f"products_{site_name}.csv")
 pdf.to_csv(products_out_path, index=False)
-categories_out_path = os.path.join(cache_data_dir, f"categories_{sitename}.csv")
+categories_out_path = os.path.join(cache_data_dir, f"categories_{site_name}.csv")
 cdf.to_csv(categories_out_path, index=False)
-
-# prods_df_concat = pd.concat([pdf, prods_df])
-# cats_df_concat = pd.concat([cdf, cats_df])
-
-# prods_df_concat.to_csv(os.path.join("clark_mod", "products_concat.csv"))
-# cats_df_concat.to_csv(os.path.join("clark_mod", "categories_concat.csv"))
