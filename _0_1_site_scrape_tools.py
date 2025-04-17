@@ -153,41 +153,43 @@ def clean_pack_size(text: str, prod_name: str, **kwargs):
         item_mass_g, items_in_pack, portions_in_pack, flag = MASS_EXTRACTOR_3(text, prod_name)
     return item_mass_g, items_in_pack, portions_in_pack, flag
 
-def extract_ingredient_details(df, column_name):
-    def parse_ingredients(ingredient_text):
-        if pd.isna(ingredient_text):
-            return []
-        pattern = r'([^(),%]+)(?:\s*(\d+\.?\d*)%?)?'
-        matches = re.findall(pattern, ingredient_text)
-        return [(match[0].strip(), float(match[1]) if match[1] else None) for match in matches]
+# def extract_ingredient_details(df, column_name):
+#     def parse_ingredients(ingredient_text):
+#         if pd.isna(ingredient_text):
+#             return []
+#         pattern = r'([^(),%]+)(?:\s*(\d+\.?\d*)%?)?'
+#         matches = re.findall(pattern, ingredient_text)
+#         return [(match[0].strip(), float(match[1]) if match[1] else None) for match in matches]
     
-    df['parsed_ingredients'] = df[column_name].apply(parse_ingredients)
-    exploded_df = df.explode('parsed_ingredients')
-    exploded_df[['ingredient', 'percentage']] = pd.DataFrame(
-        exploded_df['parsed_ingredients'].tolist(), index=exploded_df.index
-    )
-    exploded_df.drop(columns=['parsed_ingredients'], inplace=True)
-    return exploded_df
+#     df['parsed_ingredients'] = df[column_name].apply(parse_ingredients)
+#     exploded_df = df.explode('parsed_ingredients')
+#     exploded_df[['ingredient', 'percentage']] = pd.DataFrame(
+#         exploded_df['parsed_ingredients'].tolist(), index=exploded_df.index
+#     )
+#     exploded_df.drop(columns=['parsed_ingredients'], inplace=True)
+#     return exploded_df
+
     
-def fetch_sitemap_urls(sitemap_url):
-    response = requests.get(sitemap_url)
-    response.raise_for_status()
-    root = ET.fromstring(response.content)
-    urls = [element.text for element in root.iter() if element.tag.endswith("loc")]
-    return urls
+def _get_url_df(sitemap_url, cache_data_path, overwrite: bool):
+    """Currently this is specific to Brake.co.uk, might need to be updated for
+    other sites."""
+    def fetch_sitemap_urls(sitemap_url):
+        response = requests.get(sitemap_url)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        urls = [element.text for element in root.iter() if element.tag.endswith("loc")]
+        return urls
+        
+    def fetch_product_pages(sitemap_url):
+        sitemap_urls = fetch_sitemap_urls(sitemap_url)
+        product_urls = fetch_sitemap_urls([url for url in sitemap_urls if "Product" in url][0])
+        return [url for url in product_urls if ".jpg" not in url]
     
-def fetch_product_pages(sitemap_url):
-    sitemap_urls = fetch_sitemap_urls(sitemap_url)
-    product_urls = fetch_sitemap_urls([url for url in sitemap_urls if "Product" in url][0])
-    return [url for url in product_urls if ".jpg" not in url]
-    
-    
-def _get_url_df(url, cache_data_path, overwrite: bool):
     # check for existing link data
     if os.path.isfile(cache_data_path) and not overwrite:
         df = pd.read_csv(cache_data_path, index_col = 0)
     else:
-        url_list = fetch_product_pages(url)
+        url_list = fetch_product_pages(sitemap_url)
         url_listx = [url for url in url_list if urllib.parse.urlparse(url).netloc in url]
         paths = [urllib.parse.urlsplit(url).path.strip('/') for url in url_list]
         final_paths = set(paths)
@@ -200,8 +202,8 @@ def _get_url_df(url, cache_data_path, overwrite: bool):
         df_rows = []
         for path in final_paths:
             row = {"URL": urllib.parse.urlunsplit((
-                urllib.parse.urlsplit(url).scheme,
-                urllib.parse.urlsplit(url).netloc,
+                urllib.parse.urlsplit(sitemap_url).scheme,
+                urllib.parse.urlsplit(sitemap_url).netloc,
                 path,
                 '',
                 ''
