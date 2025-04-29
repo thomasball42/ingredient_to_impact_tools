@@ -1,4 +1,4 @@
-import _0_1_site_scrape_tools as sst
+import _0_1_site_scrape_functions as ssf
 import pandas as pd
 import os
 from tqdm import tqdm
@@ -11,30 +11,28 @@ SITE_CONFIGS = {
         "sitemap_url": "https://www.brake.co.uk/sitemap.xml",
         "reject_list": ["catering-supplies"],
         "header_strings": {
-            "Ingredients": sst.fetch_ingredients_brakes, # this could be e.g. sst.fetch_ingredients_sainsburys
-            "Nutrition": sst.fetch_nutrition_brakes,
-            "Pack size": sst.fetch_packsize_brakes,
-            "Product name": sst.fetch_name_brakes,
+            "Ingredients": ssf.fetch_ingredients_brakes, # this could be e.g. ssf.fetch_ingredients_sainsburys
+            "Nutrition": ssf.fetch_nutrition_brakes,
+            "Pack size": ssf.fetch_packsize_brakes,
+            "Product name": ssf.fetch_name_brakes,
         },
     },
     # "example": {  # Placeholder for another site
     #     "reject_list": ["exclude-category"],
     #     "header_strings": {
-    #         "Ingredients": sst.fetch_ingredients_example,
-    #         "Nutrition": sst.fetch_nutrition_example,
-    #         "Pack size": sst.fetch_packsize_example,
-    #         "Product name": sst.fetch_name_example,
+    #         "Ingredients": ssf.fetch_ingredients_example,
+    #         "Nutrition": ssf.fetch_nutrition_example,
+    #         "Pack size": ssf.fetch_packsize_example,
+    #         "Product name": ssf.fetch_name_example,
     #     },
     # },
 }
-
 
 for site, config in SITE_CONFIGS.items():
     
     SITEMAP_URL = config["sitemap_url"]
     REJECT_LIST = config["reject_list"]
     HEADER_STRINGS = config["header_strings"]
-    
     
     cache_data_dir = os.path.join("dat", "site_data")
     site_name = tldextract.extract(SITEMAP_URL).domain
@@ -43,7 +41,7 @@ for site, config in SITE_CONFIGS.items():
     
     os.makedirs(cache_data_dir, exist_ok=True)
     
-    df = sst._get_url_df(SITEMAP_URL, cache_data_path, overwrite=OVERWRITE) # this might need to be updated, including sub functions
+    df = ssf._get_url_df(SITEMAP_URL, cache_data_path, overwrite=OVERWRITE) # this might need to be updated, including sub functions
     
     for idx, row in tqdm(df.iterrows(), total=len(df), desc=f"Scraping via {SITEMAP_URL}"):
         if pd.notnull(row.get("status_code")):
@@ -54,7 +52,7 @@ for site, config in SITE_CONFIGS.items():
             if any(r in page_url for r in REJECT_LIST):
                 df.loc[idx, "RFLAG"] = "non_food"
             else:
-                soup, status_code = sst._get_soup(page_url)
+                soup, status_code = ssf._get_soup(page_url)
                 df.loc[idx, "status_code"] = status_code
                 if status_code != 404:
                     for fstring, fetch_func in HEADER_STRINGS.items():
@@ -68,12 +66,12 @@ for site, config in SITE_CONFIGS.items():
     # Processing info
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing info"):
         if "Nutrition_string" in row and isinstance(row.Nutrition_string, str):
-            nutrition_text_cdf = sst.clean_nutrition_str(row.Nutrition_string)
+            nutrition_text_cdf = ssf.clean_nutrition_str(row.Nutrition_string)
             df.loc[idx, nutrition_text_cdf.Element + " (" + nutrition_text_cdf.Unit + ")"] = \
                 nutrition_text_cdf.Value.astype(float).values
     
         if "Pack size_string" in row and isinstance(row["Pack size_string"], str):
             ps_text, prod_name = row["Pack size_string"], row["Product name_string"]
-            df.loc[idx, ["item_mass_g", "items_in_pack", "portions_in_pack", "PACKFLAG"]] = sst.clean_pack_size(ps_text, prod_name)
+            df.loc[idx, ["item_mass_g", "items_in_pack", "portions_in_pack", "PACKFLAG"]] = ssf.clean_pack_size(ps_text, prod_name)
     
     df.to_csv(cache_data_path)
