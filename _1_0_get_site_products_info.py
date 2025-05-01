@@ -1,38 +1,49 @@
 import _0_1_site_scrape_functions as ssf
+import _0_1_page_parsing_functions as ppf
+import _0_1_connection_functions as cf
+
 import pandas as pd
 import os
 from tqdm import tqdm
 import tldextract
+import requests
 
 OVERWRITE = True
 
 SITE_CONFIGS = {
-    "brake": {
-        "sitemap_url": "https://www.brake.co.uk/sitemap.xml",
-        "reject_list": ["catering-supplies"],
-        "header_strings": {
-            "Ingredients": ssf.fetch_ingredients_brakes, # this could be e.g. ssf.fetch_ingredients_sainsburys
-            "Nutrition": ssf.fetch_nutrition_brakes,
-            "Pack size": ssf.fetch_packsize_brakes,
-            "Product name": ssf.fetch_name_brakes,
+    # "brake": {
+    #     "sitemap_url": "https://www.brake.co.uk/sitemap.xml",
+    #     "reject_list": ["catering-supplies"],
+    #     "get_url_df_func": ssf._get_url_df_brakes,
+    #     "connect_method": "default",  # No special connection method needed
+    # },
+    "tesco": {
+        "sitemap_url": "https://www.tesco.com/groceries/sitemap/UK.en.pdp.sitemap.xml",
+        "reject_list": [],
+        "get_url_df_func": ssf._get_url_df_tesco,
+        "connect_method": "user_agent_rotation",  # Use user-agent rotation for Tesco
+        "prod_info_funcs": {
+            # "Ingredients": ssf.fetch_ingredients_tesco,
+            # "Nutrition": ssf.fetch_nutrition_tesco,
+            # "Pack size": ssf.fetch_packsize_tesco,
+            # "Product name": ssf.fetch_name_tesco,
+            # "Dept info": ssf.get_dept_tesco,
         },
     },
-    # "example": {  # Placeholder for another site
-    #     "reject_list": ["exclude-category"],
-    #     "header_strings": {
-    #         "Ingredients": ssf.fetch_ingredients_example,
-    #         "Nutrition": ssf.fetch_nutrition_example,
-    #         "Pack size": ssf.fetch_packsize_example,
-    #         "Product name": ssf.fetch_name_example,
-    #     },
-    # },
 }
 
 for site, config in SITE_CONFIGS.items():
-    
     SITEMAP_URL = config["sitemap_url"]
-    REJECT_LIST = config["reject_list"]
-    HEADER_STRINGS = config["header_strings"]
+    CONNECT_METHOD = config.get("connect_method", "default")  # Default to "default" if not specified
+    
+    # Fetch the sitemap using the specified connection method
+    response = cf.fetch_page(SITEMAP_URL, connect_method=CONNECT_METHOD)
+    if response is None:
+        print(f"Failed to fetch sitemap for {site}")
+        continue
+    
+    # Process the sitemap content
+    sitemap_content = response.text  # Example: process the sitemap content as needed
     
     cache_data_dir = os.path.join("dat", "site_data")
     site_name = tldextract.extract(SITEMAP_URL).domain
@@ -41,7 +52,11 @@ for site, config in SITE_CONFIGS.items():
     
     os.makedirs(cache_data_dir, exist_ok=True)
     
-    df = ssf._get_url_df(SITEMAP_URL, cache_data_path, overwrite=OVERWRITE) # this might need to be updated, including sub functions
+    GET_URL_DF_FUNC = config["get_url_df_func"]
+    df = GET_URL_DF_FUNC(SITEMAP_URL, cache_data_path, overwrite=OVERWRITE)
+   
+    REJECT_LIST = config["reject_list"]
+    PROD_INFO_FUNCS = config["prod_info_funcs"]
     
     for idx, row in tqdm(df.iterrows(), total=len(df), desc=f"Scraping via {SITEMAP_URL}"):
         if pd.notnull(row.get("status_code")):
@@ -55,23 +70,24 @@ for site, config in SITE_CONFIGS.items():
                 soup, status_code = ssf._get_soup(page_url)
                 df.loc[idx, "status_code"] = status_code
                 if status_code != 404:
-                    for fstring, fetch_func in HEADER_STRINGS.items():
+                    for fstring, fetch_func in PROD_INFO_FUNCS.items():
                         df.loc[idx, f"{fstring}_string"] = fetch_func(soup)
                         
         if idx % 10 == 0:
-            df.to_csv(cache_data_path)
+            pass
+            # df.to_csv(cache_data_path)
             
-    df.to_csv(cache_data_path)
+    # df.to_csv(cache_data_path)
     
     # Processing info
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing info"):
         if "Nutrition_string" in row and isinstance(row.Nutrition_string, str):
-            nutrition_text_cdf = ssf.clean_nutrition_str(row.Nutrition_string)
+            nutrition_text_cdf = sipf.clean_nutrition_str(row.Nutrition_string)
             df.loc[idx, nutrition_text_cdf.Element + " (" + nutrition_text_cdf.Unit + ")"] = \
                 nutrition_text_cdf.Value.astype(float).values
     
         if "Pack size_string" in row and isinstance(row["Pack size_string"], str):
             ps_text, prod_name = row["Pack size_string"], row["Product name_string"]
-            df.loc[idx, ["item_mass_g", "items_in_pack", "portions_in_pack", "PACKFLAG"]] = ssf.clean_pack_size(ps_text, prod_name)
+            df.loc[idx, ["item_mass_g", "items_in_pack", "portions_in_pack", "PACKFLAG"]] = sipf.clean_pack_size(ps_text, prod_name)
     
-    df.to_csv(cache_data_path)
+    # df.to_csv(cache_data_path)

@@ -18,6 +18,10 @@ import pandas as pd
 import re 
 import xml.etree.ElementTree as ET
 import numpy as np
+import tqdm
+import time
+import random
+from fake_useragent import UserAgent
 
 def fetch_ingredients_brakes(soup,):
     ret = None
@@ -54,136 +58,21 @@ def fetch_name_brakes(soup,):
         ret = element.get_text(strip=True)
     return ret
 
-def clean_nutrition_str(text: str):
-    """Returns a pandas.DataFrame
-    """
-    pattern = r'(\w+(?: \w+)*) \((\w+)\)\s+\n+\s+([\d.]+)'
-    matches = re.findall(pattern, text)
-    return pd.DataFrame(matches, columns = ["Element", "Unit", "Value"])
-        
-def clean_pack_size(text: str, prod_name: str, **kwargs):
-    """This is a mess - trying to catch all the exceptions but it's not easy"""
-    text = text.lower()
-    mass_convert = {"g": 1,"kg" : 0.001,"ltr": 0.001,"L" : 0.001,
-                    "l" : 0.001,"lb": 0.00220462,"cl" : 0.1,"ml" : 1,
-                    "gne" : 1, "Kg" : 0.001, "lt" : 0.001,
-                    "gall" : (1/4546.09)
-                    }
-    range_mean = lambda rstr: np.mean([float(v) for v in rstr.replace(" ", "").split("-")])
-    def look_for_mass_units(instr: str):
-        mass_units = [r'\b(\d+\.?\d*)\s*(mg|g|kg|lb|oz|l|ml)\b',]  # Match numbers followed by mass units
-        matches = []
-        for pattern in mass_units:
-            matches.extend(re.findall(pattern, instr, re.IGNORECASE))
-        return matches          
-    def MASS_EXTRACTOR_1(pack_size_str): #lol
-        match = re.search(r'(?P<quantity>\d+)\s*x\s*(?P<item_size>\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?)(?P<unit>[a-zA-Z]+)', pack_size_str)
-        item_mass_g, items_in_pack, portions_in_pack, flag = None, None, None, np.nan
-        if match:
-            items_in_pack = int(match.group("quantity"))
-            item_size_str = match.group("item_size")
-            unit = match.group("unit")
-            if "-" in item_size_str:
-                item_mass = range_mean(item_size_str)
-            else:
-                item_mass = float(item_size_str)
-            if unit in mass_convert.keys():
-                item_mass_g = item_mass * mass_convert["g"]/mass_convert[unit]
-            elif unit.lower() in ["ptn", "ptns", "tabs", "pk", "pots", "pcs", "pc", "pkt"]:
-                flag = "ME1_PORTIONUNIT"
-            else:
-                flag = "FAIL"
-        else:
-            flag = "FAIL"      
-        return item_mass_g, items_in_pack, portions_in_pack, flag
-    def MASS_EXTRACTOR_2(pack_size_str, prod_name):
-        """This one looks for mass in the product name.
-        This only actually catches like 3 products... """
-        item_mass_g, items_in_pack, portions_in_pack, flag = None, None, None, np.nan
-        match = re.search(r'(?P<quantity>\d+)\s*x\s*(?P<item_size>\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?)(?P<unit>[a-zA-Z]+)', pack_size_str)
-        if match:
-            items_in_pack = int(match.group("quantity"))
-            item_size_str = match.group("item_size")
-            unit = match.group("unit")
-            matches = look_for_mass_units(prod_name)
-            if matches:
-                item_mass_g = float(matches[0][0]) * mass_convert["g"]/mass_convert[matches[0][1]]
-                portions_in_pack = float(items_in_pack) * float(item_size_str)
-            else:
-                flag = "NO_MASS1"
-                portions_in_pack = float(items_in_pack) * float(item_size_str)
-        else:
-            flag = "FAIL"
-        return item_mass_g, items_in_pack, portions_in_pack, flag
-    def MASS_EXTRACTOR_3(pack_size_str, prod_name):
-        item_mass_g, items_in_pack, portions_in_pack, flag = None, None, None, np.nan
-        flag = "TESTING"
-        match = re.search(r'(?P<quantity>\d+)\s*x\s*(?P<item_size>\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?)(?P<unit>[a-zA-Z]+)', pack_size_str)
-        if not match:     
-            nums = [n.strip(" ") for n in pack_size_str.strip("pack size: ").split("x")]    
-            n = 1
-            portion = False
-            for num in nums:
-                try: 
-                    num = float(num)
-                    n = n * num
-                except ValueError:
-                    if "ptn" in num:
-                        portion = True
-                        n = n * float(num.lower().split(" ")[0])
-                    else:
-                        try:
-                            n = n * float(num.lower().strip(" qwertyuiopasdfghjklzxcvbnm"))
-                        except ValueError:
-                            flag = "FAIL"
-                if flag != "FAIL":
-                    if portion:
-                        portions_in_pack = n
-                        flag = "NO_MASS2"
-                    else:
-                        items_in_pack = n
-                        flag = "NO_MASS2"
-        else:
-            flag = "UNIT_FAIL"
-        return item_mass_g, items_in_pack, portions_in_pack, flag
-    item_mass_g, items_in_pack, portions_in_pack, flag = MASS_EXTRACTOR_1(text)
-    if flag == "ME1_PORTIONUNIT":
-        item_mass_g, items_in_pack, portions_in_pack, flag = MASS_EXTRACTOR_2(text, prod_name)
-    if flag == "FAIL":
-        item_mass_g, items_in_pack, portions_in_pack, flag = MASS_EXTRACTOR_3(text, prod_name)
-    return item_mass_g, items_in_pack, portions_in_pack, flag
-
-# def extract_ingredient_details(df, column_name):
-#     def parse_ingredients(ingredient_text):
-#         if pd.isna(ingredient_text):
-#             return []
-#         pattern = r'([^(),%]+)(?:\s*(\d+\.?\d*)%?)?'
-#         matches = re.findall(pattern, ingredient_text)
-#         return [(match[0].strip(), float(match[1]) if match[1] else None) for match in matches]
+def fetch_sitemap_urls(sitemap_url):
+    response = requests.get(sitemap_url)
+    response.raise_for_status()
+    root = ET.fromstring(response.content)
+    urls = [element.text for element in root.iter() if element.tag.endswith("loc")]
+    return urls
     
-#     df['parsed_ingredients'] = df[column_name].apply(parse_ingredients)
-#     exploded_df = df.explode('parsed_ingredients')
-#     exploded_df[['ingredient', 'percentage']] = pd.DataFrame(
-#         exploded_df['parsed_ingredients'].tolist(), index=exploded_df.index
-#     )
-#     exploded_df.drop(columns=['parsed_ingredients'], inplace=True)
-#     return exploded_df
+def fetch_product_pages(sitemap_url):
+    sitemap_urls = fetch_sitemap_urls(sitemap_url)
+    product_urls = fetch_sitemap_urls([url for url in sitemap_urls if "Product" in url][0])
+    return [url for url in product_urls if ".jpg" not in url]
 
-    
-def _get_url_df(sitemap_url, cache_data_path, overwrite: bool):
+def _get_url_df_brakes(sitemap_url, cache_data_path, overwrite: bool):
     """Currently this is specific to Brake.co.uk, might need to be updated for
     other sites."""
-    def fetch_sitemap_urls(sitemap_url):
-        response = requests.get(sitemap_url)
-        response.raise_for_status()
-        root = ET.fromstring(response.content)
-        urls = [element.text for element in root.iter() if element.tag.endswith("loc")]
-        return urls
-        
-    def fetch_product_pages(sitemap_url):
-        sitemap_urls = fetch_sitemap_urls(sitemap_url)
-        product_urls = fetch_sitemap_urls([url for url in sitemap_urls if "Product" in url][0])
-        return [url for url in product_urls if ".jpg" not in url]
     
     # check for existing link data
     if os.path.isfile(cache_data_path) and not overwrite:
@@ -223,10 +112,119 @@ def _get_soup(page_url: str):
     if status_code != 404:
         soup = bs4.BeautifulSoup(reqs.text, 'html.parser')
     else: soup = None    
-    
     return soup, status_code
 
+def fetch_sitemap_urls_tesco(sitemap_url, cache_data_path, 
+                           resume=True, batch_size=100, 
+                           delay=2.0, max_retries=3,
+                           use_proxy=False):
+    # user agent generator
+    ua = UserAgent()
+    # headers
+    headers = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Referer': 'https://www.tesco.com/',
+        'DNT': '1',
+    }
+    # Proxy configuration (if enabled)
+    proxies = {
+        'http': 'http://your_proxy:port',
+        'https': 'http://your_proxy:port'
+    } if use_proxy else None
+    
+    if resume and os.path.exists(cache_data_path):
+        existing_df = pd.read_csv(cache_data_path, index_col=0)
+        processed_urls = set(existing_df['URL'])
+        print(f"Resuming with {len(existing_df)} existing URLs")
+    else:
+        existing_df = pd.DataFrame(columns=['URL'])
+        processed_urls = set()
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            # Rotate user agent for each attempt
+            headers['User-Agent'] = ua.random
+            
+            print(f"Attempt {retry_count + 1} of {max_retries}")
+            print(f"Fetching sitemap with User-Agent: {headers['User-Agent']}")
+            
+            response = requests.get(
+                sitemap_url,
+                headers=headers,
+                timeout=30,
+                proxies=proxies,
+                stream=True
+            )
+            if response.status_code == 403:
+                print("Received 403 Forbidden - trying different approach")
+                raise ConnectionError("Blocked by server")
+            response.raise_for_status()
+            soup = bs4.BeautifulSoup(response.content, 'lxml-xml')
+            url_tags = soup.find_all('loc')
+            new_urls_df = pd.DataFrame(columns=['URL'])
+            with tqdm.tqdm(total=len(url_tags), desc="Extracting URLs") as pbar:
+                for loc in url_tags:
+                    try:
+                        url = loc.text.strip()
+                        if url not in processed_urls:
+                            new_urls_df.loc[len(new_urls_df)] = [url]
+                            processed_urls.add(url)
+                            
+                            # Batch processing with random delay
+                            if len(new_urls_df) >= batch_size:
+                                combined_df = pd.concat([existing_df, new_urls_df])
+                                combined_df.to_csv(cache_data_path)
+                                existing_df = combined_df
+                                new_urls_df = pd.DataFrame(columns=['URL'])
+                                time.sleep(delay + random.uniform(0, 1.5))  # Randomized delay
+                                pbar.set_postfix({'Saved': len(existing_df)})    
+                        pbar.update(1)   
+                    except Exception as e:
+                        print(f"\nError processing URL: {e}")
+                        continue
+            if not new_urls_df.empty:
+                combined_df = pd.concat([existing_df, new_urls_df])
+                combined_df.to_csv(cache_data_path)
+                existing_df = combined_df
+            return existing_df
+            
+        except requests.exceptions.RequestException as e:
+            retry_count += 1
+            if retry_count < max_retries:
+                wait_time = min(2 ** retry_count, 30)  # Exponential backoff
+                print(f"\nRequest failed (attempt {retry_count}): {e}")
+                print(f"Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+            else:
+                print("\nMax retries reached. Failed to fetch sitemap.")
+                if 'new_urls_df' in locals() and not new_urls_df.empty:
+                    combined_df = pd.concat([existing_df, new_urls_df])
+                    combined_df.to_csv(cache_data_path)
+                raise
+    
+def _get_url_df_tesco(sitemap_url, cache_data_path, overwrite: bool):
+    
+    # check for existing link data
+    # if os.path.isfile(cache_data_path) and not overwrite:
+    #     df = pd.read_csv(cache_data_path, index_col = 0)
+    # else:
+    fetch_sitemap_urls_tesco(sitemap_url, cache_data_path, resume = True, 
+                             batch_size = 100, delay = 1.1)
+    df = pd.read_csv(cache_data_path, index_col = 0)
+    if "0" not in df.columns:
+        print(df.columns)
+        df = df.reset_index(drop = True)
+        with tqdm.tqdm(total=len(df)) as pbar:        
+            for idx, row in df.iterrows():
+                tcode = urllib.parse.urlsplit(df.URL[1]).path.split("/")[-1]
+                df[[0, 1, 2, 3, 4, 5, 6]] = [tcode, None, None, None, None, None, None]
+                pbar.update(1)
+        df.to_csv(cache_data_path)
+    return df
+
 
     
-        
-            
+    
