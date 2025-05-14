@@ -109,17 +109,3 @@ def clean_pack_size(text: str, prod_name: str, **kwargs):
     if flag == "FAIL":
         item_mass_g, items_in_pack, portions_in_pack, flag = MASS_EXTRACTOR_3(text, prod_name)
     return item_mass_g, items_in_pack, portions_in_pack, flag
-
-def fetch_with_user_agent_rotation(url):
-    """
-    Fetches a URL using a rotating user-agent.
-    """
-    ua = UserAgent()
-    headers = {"User-Agent": ua.random}
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching URL with user-agent rotation: {e}")
-        return None
